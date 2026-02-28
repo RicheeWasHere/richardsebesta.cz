@@ -4,17 +4,12 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - ADMIN_PASSWORD=Kebab@Husova1320
-      - DATABASE_URL=file:/app/prisma/db/prod.db
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - DISCORD_USER_ID=${DISCORD_USER_ID}
     networks:
       - dokploy-network  # <-- Connects service to Traefik's network
-    volumes:
-      - portfolio_db:/app/prisma/db
     command: >
-      sh -c "npx prisma db push && node server.js"
-
-volumes:
-  portfolio_db:
+      sh -c "node server.js"
 
 # Tells compose this network already exists on the host
 networks:

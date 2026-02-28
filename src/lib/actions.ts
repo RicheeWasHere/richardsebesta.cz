@@ -1,7 +1,5 @@
 'use server';
 
-import { prisma } from './prisma';
-
 export async function submitContact(formData: FormData) {
   try {
     const name = formData.get('name') as string;
@@ -12,24 +10,47 @@ export async function submitContact(formData: FormData) {
       return { success: false, error: 'Vyplňte všechna pole prosím.' };
     }
 
-    await prisma.contactMessage.create({
-      data: { name, email, message },
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    if (!webhookUrl) {
+      console.error('DISCORD_WEBHOOK_URL is not set.');
+      return { success: true }; // return success true so user doesnt get error, but we log the issue
+    }
+
+    const userId = process.env.DISCORD_USER_ID;
+    const content = userId ? `<@${userId}>` : undefined;
+
+    const payload = {
+      content,
+      embeds: [
+        {
+          title: 'New Contact Form Submission',
+          color: 0x3b82f6,
+          fields: [
+            { name: 'Name', value: name, inline: true },
+            { name: 'Email', value: email, inline: true },
+            { name: 'Message', value: message },
+          ],
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
+
+    if (!response.ok) {
+      console.error('Discord webhook error:', await response.text());
+      return { success: false, error: 'Chyba při odesílání zprávy.' };
+    }
 
     return { success: true };
   } catch (err) {
     console.error(err);
     return { success: false, error: 'Chyba při odesílání zprávy.' };
   }
-}
-
-export async function getMessages(password: string) {
-  // Super simple admin password check (e.g. from env)
-  if (password !== (process.env.ADMIN_PASSWORD || 'admin123')) {
-    return { success: false, data: [] };
-  }
-  const data = await prisma.contactMessage.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
-  return { success: true, data };
 }
