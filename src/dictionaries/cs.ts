@@ -18,8 +18,22 @@ export const cs = {
     title: "Pracovní zkušenosti",
     jobs: [
       {
+        company: "Systrix",
+        role: "Fullstack Developer",
+        period: "Červen 2025 - Září 2025 (Klášterec nad Ohří)",
+        desc: "Návrh webové identity a webové aplikace",
+        link: "https://systrix.cz/"
+      },
+      {
+        company: "Attractive.cz",
+        role: "On-Call Software Engineer",
+        period: "Leden 2025 - Dnes (Chomutov)",
+        desc: "Řešení kritických výpadků webových aplikací.",
+        link: "https://attractive.cz/"
+      },
+      {
         company: "BePositive",
-        role: "Junior Software Engineer",
+        role: "Junior Frontend Developer",
         period: "Červenec 2024 - Prosinec 2024 (Brno)",
         desc: "Development webové aplikace v React.js",
         link: "https://www.bepositive.agency/"
@@ -28,7 +42,7 @@ export const cs = {
         company: "Flyboys",
         role: "Tester",
         period: "Červenec 2023 - Srpen 2023 (Klášterec nad Ohří)",
-        desc: "",
+        desc: "Testování hry World of Airports",
         link: "https://www.worldofairports.com/"
       }
     ]
@@ -82,8 +96,8 @@ export const cs = {
     title: "Dobrovolnictví",
     items: [
       {
-        name: "Student Cyber Games",
-        role: "IT / Vedoucí Obchodu",
+        name: "Student Can Grow",
+        role: "IT / Obchod / Výpomoc",
         period: "Duben 2025 - Dnes (Brno)",
         desc: "Volnočasově pomáhám s chodem obchodu spolku.",
         link: "https://scg.cz"
