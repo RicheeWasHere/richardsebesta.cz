@@ -7,6 +7,14 @@ const defaultLocale = 'cs';
 export function middleware(request: NextRequest) {
   // Check if there is any supported locale in the pathname
   const pathname = request.nextUrl.pathname;
+
+  // Standalone iframe widget: skip locale routing and allow embedding from any origin.
+  if (pathname === '/bio-widget.html') {
+    const response = NextResponse.next();
+    response.headers.set('Content-Security-Policy', 'frame-ancestors *');
+    response.headers.delete('X-Frame-Options');
+    return response;
+  }
   
   // Skip public files and api routes
   if (
@@ -37,6 +45,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Matcher ignoring `/_next/` and `/api/`
+  // Matcher ignoring `/_next/` and `/api/`. bio-widget.html is handled above
+  // so it is not locale-redirected; keep it in the matcher to set embed headers.
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR algoritmus</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+  }
+  body {
+    color: #e2e8f0;
+    font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    user-select: none;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    background: #1a1c23;
+    padding: 18px 24px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+    transition: opacity 0.4s ease;
+    transform-origin: center center;
+  }
+  .mat-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .mat-tag {
+    font-size: 12px;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+  }
+  .mat-tag span { color: #38bdf8; font-weight: bold; }
+  .matrix-box {
+    display: flex;
+    align-items: center;
+  }
+  .bracket {
+    width: 7px;
+    height: 118px;
+    border: 1.5px solid #64748b;
+  }
+  .bracket.l { border-right: none; margin-right: 5px; border-radius: 3px 0 0 3px; }
+  .bracket.r { border-left: none; margin-left: 5px; border-radius: 0 3px 3px 0; }
+  table { border-collapse: collapse; }
+  td {
+    width: 54px;
+    height: 28px;
+    text-align: right;
+    padding-right: 6px;
+    font-size: 13px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    border-radius: 3px;
+  }
+  .diag {
+    color: #34d399;
+    font-weight: bold;
+    background: rgba(52, 211, 153, 0.12);
+  }
+  .diag-done {
+    color: #34d399;
+    font-weight: bold;
+    background: rgba(52, 211, 153, 0.28);
+  }
+  .zeroed {
+    color: #3f4756;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    min-width: 118px;
+  }
+  .pill {
+    background: #23262f;
+    border: 1px solid #334155;
+    color: #64748b;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+  .pill.active {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+  }
+  .pill.done {
+    border-color: #34d399;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+  }
+  .arrow {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .k-counter {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #fbbf24;
+  }
+  @media (max-width: 520px) {
+    .stage {
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 14px;
+    }
+    .flow { min-width: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="mat-wrap">
+    <div class="mat-tag"><span>A<sub><span id="kSub">0</span></sub></span></div>
+    <div class="matrix-box">
+      <div class="bracket l"></div>
+      <table id="matA"></table>
+      <div class="bracket r"></div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="pill" id="pQR">A<sub>k</sub> = Q<sub>k</sub> R<sub>k</sub></div>
+    <div class="arrow">↓</div>
+    <div class="pill" id="pRQ">A<sub>k+1</sub> = R<sub>k</sub> Q<sub>k</sub></div>
+    <div class="k-counter" id="kBadge">k = 0</div>
+  </div>
+</div>
+
+<script>
+const N = 4;
+const MAX_STEPS = 10;
+let A = [];
+let k = 0;
+
+function randSign() {
+  return Math.random() < 0.5 ? -1 : 1;
+}
+
+function randRange(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+// Gram-Schmidtův QR rozklad
+function qrDecompose(M) {
+  const Q = Array.from({ length: N }, () => Array(N).fill(0));
+  const R = Array.from({ length: N }, () => Array(N).fill(0));
+
+  for (let j = 0; j < N; j++) {
+    let v = M.map(row => row[j]);
+    for (let i = 0; i < j; i++) {
+      let dot = 0;
+      for (let r = 0; r < N; r++) dot += Q[r][i] * M[r][j];
+      R[i][j] = dot;
+      for (let r = 0; r < N; r++) v[r] -= dot * Q[r][i];
+    }
+    let norm = Math.sqrt(v.reduce((acc, x) => acc + x * x, 0));
+    if (norm < 1e-12) norm = 1e-12;
+    R[j][j] = norm;
+    for (let r = 0; r < N; r++) Q[r][j] = v[r] / norm;
+  }
+  return { Q, R };
+}
+
+function matMul(X, Y) {
+  const res = Array.from({ length: N }, () => Array(N).fill(0));
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      let sum = 0;
+      for (let m = 0; m < N; m++) sum += X[i][m] * Y[m][j];
+      res[i][j] = sum;
+    }
+  }
+  return res;
+}
+
+function transpose(M) {
+  return M[0].map((_, c) => M.map(r => r[c]));
+}
+
+// Vygeneruje náhodnou symetrickou matici A_0 = Q * D * Q^T s dobře odděleným spektrem
+function generateFastConvergingMatrix() {
+  const eigs = [
+    randSign() * randRange(7.5, 9.5),
+    randSign() * randRange(3.2, 4.4),
+    randSign() * randRange(1.2, 1.8),
+    randSign() * randRange(0.2, 0.5)
+  ];
+
+  // Náhodná matice pro získání ortogonální báze Q
+  const Rnd = Array.from({ length: N }, () =>
+    Array.from({ length: N }, () => Math.random() * 2 - 1)
+  );
+  const { Q } = qrDecompose(Rnd);
+
+  const D = Array.from({ length: N }, (_, i) =>
+    Array.from({ length: N }, (_, j) => (i === j ? eigs[i] : 0))
+  );
+
+  return matMul(matMul(Q, D), transpose(Q));
+}
+
+function offDiagonalNorm(M) {
+  let sum = 0;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < i; j++) sum += M[i][j] * M[i][j];
+  }
+  return Math.sqrt(sum);
+}
+
+function fitToViewport() {
+  const stage = document.getElementById('stage');
+  if (!stage) return;
+  stage.style.transform = 'none';
+  const rect = stage.getBoundingClientRect();
+  const pad = 12;
+  const sx = (window.innerWidth - pad) / rect.width;
+  const sy = (window.innerHeight - pad) / rect.height;
+  const s = Math.min(1, sx, sy);
+  if (!Number.isFinite(s) || s <= 0) return;
+  stage.style.transform = s < 0.999 ? `scale(${s})` : 'none';
+}
+
+function render(isDone = false) {
+  const tbl = document.getElementById('matA');
+  tbl.innerHTML = '';
+
+  for (let i = 0; i < N; i++) {
+    const tr = document.createElement('tr');
+    for (let j = 0; j < N; j++) {
+      const td = document.createElement('td');
+      const val = Math.abs(A[i][j]) < 0.005 ? 0 : A[i][j];
+      td.textContent = val.toFixed(2);
+
+      if (i === j) {
+        td.classList.add(isDone ? 'diag-done' : 'diag');
+      } else {
+        const mag = Math.min(Math.abs(val) / 2.2, 1);
+        if (val === 0) {
+          td.classList.add('zeroed');
+        } else if (i > j) {
+          td.style.background = `rgba(244, 63, 94, ${mag * 0.28})`;
+          td.style.color = '#fda4af';
+        } else {
+          td.style.color = isDone ? '#475569' : '#94a3b8';
+        }
+      }
+      tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+
+  document.getElementById('kSub').textContent = k;
+  document.getElementById('kBadge').textContent = isDone ? `k = ${k} ✓` : `k = ${k}`;
+  fitToViewport();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function runForever() {
+  const pQR = document.getElementById('pQR');
+  const pRQ = document.getElementById('pRQ');
+  const stage = document.getElementById('stage');
+
+  while (true) {
+    // 1. Spawn nové matice
+    A = generateFastConvergingMatrix();
+    k = 0;
+    pQR.className = 'pill';
+    pRQ.className = 'pill';
+    render(false);
+    stage.style.opacity = '1';
+
+    // Pauza na prohlédnutí výchozí matice A_0
+    await sleep(1400);
+
+    // 2. Iterace QR algoritmu
+    while (k < MAX_STEPS && offDiagonalNorm(A) > 0.015) {
+      pQR.className = 'pill active';
+      pRQ.className = 'pill';
+      await sleep(320);
+
+      const { Q, R } = qrDecompose(A);
+      A = matMul(R, Q);
+      k++;
+
+      pQR.className = 'pill';
+      pRQ.className = 'pill active';
+      render(false);
+      await sleep(420);
+    }
+
+    // 3. Zvýraznění finálního stavu a delší pauza
+    pQR.className = 'pill';
+    pRQ.className = 'pill done';
+    render(true);
+    await sleep(3800);
+
+    // 4. Jemné probliknutí před novou maticí
+    stage.style.opacity = '0.15';
+    await sleep(400);
+  }
+}
+
+window.addEventListener('resize', fitToViewport);
+runForever();
+</script>
+</body>
+</html>
